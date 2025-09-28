@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Thu Sep 25 17:00:19 2025
+
+@author: sksou
+"""
 
 import pickle
 import streamlit as st
@@ -6,8 +11,11 @@ from streamlit_option_menu import option_menu
 
 
 # loading the saved models
+
 diabetes_model = pickle.load(open('diabetes_model.sav', 'rb'))
+
 heart_disease_model = pickle.load(open('heart_disease_model.sav', 'rb'))
+
 parkinsons_model = pickle.load(open('parkinsons_model.sav', 'rb'))
 
 
@@ -65,12 +73,20 @@ if (selected == 'Diabetes Prediction'):
     # creating a button for Prediction
     
     if st.button('Diabetes Test Result'):
-        diab_prediction = diabetes_model.predict([[Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age]])
-        
-        if (diab_prediction[0] == 1):
-          diab_diagnosis = 'The person is diabetic'
-        else:
-          diab_diagnosis = 'The person is not diabetic'
+    # convert to float
+        try:
+            user_input = [int(Pregnancies), int(Glucose), int(BloodPressure),
+                          int(SkinThickness), int(Insulin), float(BMI),
+                          float(DiabetesPedigreeFunction), int(Age)]
+            diab_prediction = diabetes_model.predict([user_input])
+            
+            if diab_prediction[0] == 1:
+                diab_diagnosis = 'The person is diabetic'
+            else:
+                diab_diagnosis = 'The person is not diabetic'
+        except ValueError:
+            diab_diagnosis = "Please enter valid numeric values."
+
         
     st.success(diab_diagnosis)
 
@@ -133,13 +149,21 @@ if (selected == 'Heart Disease Prediction'):
     # creating a button for Prediction
     
     if st.button('Heart Disease Test Result'):
-        heart_prediction = heart_disease_model.predict([[age, sex, cp, trestbps, chol, fbs, restecg,thalach,exang,oldpeak,slope,ca,thal]])                          
-        
-        if (heart_prediction[0] == 1):
-          heart_diagnosis = 'The person is having heart disease'
-        else:
-          heart_diagnosis = 'The person does not have any heart disease'
-        
+        try:
+            user_input = [
+                int(age), int(sex), int(cp), int(trestbps), int(chol),
+                int(fbs), int(restecg), int(thalach), int(exang),
+                float(oldpeak), int(slope), int(ca), int(thal)
+            ]
+            heart_prediction = heart_disease_model.predict([user_input])
+    
+            if heart_prediction[0] == 1:
+                heart_diagnosis = 'The person is having heart disease'
+            else:
+                heart_diagnosis = 'The person does not have any heart disease'
+        except ValueError:
+            heart_diagnosis = "Please enter valid numeric values."
+
     st.success(heart_diagnosis)
         
     
@@ -226,27 +250,21 @@ if (selected == "Parkinsons Prediction"):
     
     # creating a button for Prediction    
     if st.button("Parkinson's Test Result"):
-        parkinsons_prediction = parkinsons_model.predict([[fo, fhi, flo, Jitter_percent, Jitter_Abs, RAP, PPQ,DDP,Shimmer,Shimmer_dB,APQ3,APQ5,APQ,DDA,NHR,HNR,RPDE,DFA,spread1,spread2,D2,PPE]])                          
-        
-        if (parkinsons_prediction[0] == 1):
-          parkinsons_diagnosis = "The person has Parkinson's disease"
-        else:
-          parkinsons_diagnosis = "The person does not have Parkinson's disease"
-        
+        try:
+            user_input = [
+                float(fo), float(fhi), float(flo), float(Jitter_percent),
+                float(Jitter_Abs), float(RAP), float(PPQ), float(DDP),
+                float(Shimmer), float(Shimmer_dB), float(APQ3), float(APQ5),
+                float(APQ), float(DDA), float(NHR), float(HNR), float(RPDE),
+                float(DFA), float(spread1), float(spread2), float(D2), float(PPE)
+            ]
+            parkinsons_prediction = parkinsons_model.predict([user_input])
+    
+            if parkinsons_prediction[0] == 1:
+                parkinsons_diagnosis = "The person has Parkinson's disease"
+            else:
+                parkinsons_diagnosis = "The person does not have Parkinson's disease"
+        except ValueError:
+            parkinsons_diagnosis = "⚠️ Please enter valid numeric values."
+
     st.success(parkinsons_diagnosis)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
