@@ -376,7 +376,7 @@ if selected == 'HealthBot Assistant':
         st.session_state.chat_history = []
 
     with st.sidebar:
-        st.markdown("### 💬 Chats")
+        st.markdown("###Chats")
         sessions = load_chat_sessions(st.session_state.user_id)
 
         if sessions:
@@ -390,11 +390,11 @@ if selected == 'HealthBot Assistant':
                     st.rerun()
 
         st.markdown("---")
-        if st.button("➕ New Chat", key="new_chat_btn"):
+        if st.button("New Chat", key="new_chat_btn"):
             st.session_state.chat_session_id = create_chat_session(st.session_state.user_id, title="New Chat")
             st.session_state.chat_history = []
             st.rerun()
-        if st.button("🧹 Clear Current Chat", key="clear_chat_btn"):
+        if st.button("Clear Current Chat", key="clear_chat_btn"):
             st.session_state.chat_history = []
             save_chat_messages(st.session_state.chat_session_id, [])
             st.rerun()
@@ -472,4 +472,5 @@ if selected == "Past Predictions":
                 st.write("**Input Values:**")
                 st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
 
