@@ -162,7 +162,7 @@ parkinsons_model = pickle.load(open('parkinsons_model.sav', 'rb'))
 st.set_page_config(page_title="Multi-Disease Prediction System", layout="wide")
 
 if "user_id" not in st.session_state:
-    st.title("🔑 Login / Register")
+    st.title("Login / Register")
     tab1, tab2 = st.tabs(["Login", "Register"])
     with tab1:
         login_username = st.text_input("Username (Login)", key="login_username")
@@ -181,26 +181,26 @@ if "user_id" not in st.session_state:
                     st.session_state.chat_history = []
                 st.rerun()
             else:
-                st.error("❌ Invalid username or password")
+                st.error("Invalid username or password")
     with tab2:
         reg_username = st.text_input("Username (Register)", key="reg_username")
         reg_password = st.text_input("Password", type="password", key="reg_password")
         if st.button("Register", key="reg_btn"):
             if create_user(reg_username, reg_password):
-                st.success("✅ Account created! Please login now.")
+                st.success("Account created! Please login now.")
             else:
                 st.error("Username already exists. Try another.")
     st.stop()
 
 with st.sidebar:
-    st.success(f"👤 Logged in as {st.session_state['username']}")
-    if st.button("🚪 Logout", key="logout_btn"):
+    st.success(f"Logged in as {st.session_state['username']}")
+    if st.button("Logout", key="logout_btn"):
         st.session_state.clear(); st.rerun()
     selected = option_menu(
         'Disease Prediction System',
         ['Diabetes Prediction','Heart Disease Prediction','Parkinson’s Prediction',
          'HealthBot Assistant','Upload Health Report','Past Predictions'],
-        icons=['activity','heart','brain','robot','file-earmark-arrow-up','clock-history'],
+        icons=['activity','heart','person','robot','file-earmark-arrow-up','clock-history'],
         default_index=0
     )
 
@@ -357,7 +357,7 @@ if selected == "Parkinson’s Prediction":
             st.error("Please fill all fields with valid numeric values.")
 
 if selected == 'HealthBot Assistant':
-    st.title("🤖 AI HealthBot Assistant")
+    st.title("AI HealthBot Assistant")
 
     try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -398,14 +398,14 @@ if selected == 'HealthBot Assistant':
             st.session_state.chat_history = []
             save_chat_messages(st.session_state.chat_session_id, [])
             st.rerun()
-        if st.button("🗑️ Delete Current Chat", key="delete_chat_btn"):
+        if st.button("Delete Current Chat", key="delete_chat_btn"):
             delete_chat(st.session_state.chat_session_id)
             st.session_state.chat_history = []
             st.session_state.chat_session_id = create_chat_session(st.session_state.user_id, title="New Chat")
             st.rerun()
 
     for msg in st.session_state.chat_history:
-        role = "🧑 You:" if msg["role"]=="user" else "🤖 HealthBot:"
+        role = "You:" if msg["role"]=="user" else "HealthBot:"
         color = "#1e1e1e" if msg["role"]=="user" else "#2b313e"
         align = "right" if msg["role"]=="user" else "left"
         st.markdown(f"<div style='background:{color};padding:10px;border-radius:12px;margin:8px 0;text-align:{align};color:#fff;'>{role} {msg['content']}</div>", unsafe_allow_html=True)
@@ -472,3 +472,4 @@ if selected == "Past Predictions":
                 st.write("**Input Values:**")
                 st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
