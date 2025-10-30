@@ -23,12 +23,10 @@ def db_conn():
     return psycopg2.connect(DB_URL, cursor_factory=psycopg2.extras.DictCursor)
 
 
-# ---------------- PASSWORD HASH ---------------- #
 def hash_password(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
 
 
-# ---------------- CREATE USER ---------------- #
 def create_user(username: str, password: str) -> bool:
     con = None
     try:
@@ -47,8 +45,6 @@ def create_user(username: str, password: str) -> bool:
         if con:
             con.close()
 
-
-# ---------------- LOGIN USER ---------------- #
 def login_user(username: str, password: str):
     con = None
     try:
@@ -62,7 +58,6 @@ def login_user(username: str, password: str):
         if con:
             con.close()
 
-
 def save_prediction(user_id: int, disease: str, inputs: dict, result: str):
     con = None
     try:
@@ -75,8 +70,6 @@ def save_prediction(user_id: int, disease: str, inputs: dict, result: str):
     finally:
         if con:
             con.close()
-
-
 
 def load_predictions(user_id: int):
     con = None
@@ -92,7 +85,6 @@ def load_predictions(user_id: int):
         results = []
         for r in rows:
             vals = r["input_values"]
-            # If Supabase returns JSONB as dict/list, just keep it
             if isinstance(vals, str):
                 try:
                     vals = json.loads(vals)
@@ -104,9 +96,6 @@ def load_predictions(user_id: int):
         if con:
             con.close()
 
-
-
-# ---------------- CREATE CHAT SESSION ---------------- #
 def create_chat_session(user_id: int, title="New Chat", chat_type="normal") -> int:
     con = None
     try:
@@ -123,7 +112,6 @@ def create_chat_session(user_id: int, title="New Chat", chat_type="normal") -> i
         if con:
             con.close()
 
-
 def load_chat_sessions(user_id: int):
     con = None
     try:
@@ -138,7 +126,6 @@ def load_chat_sessions(user_id: int):
         sessions = []
         for r in rows:
             msgs = r["messages"]
-            # If it's already a dict/list, keep it. If it's string, parse.
             if isinstance(msgs, str):
                 try:
                     msgs = json.loads(msgs)
@@ -150,9 +137,6 @@ def load_chat_sessions(user_id: int):
         if con:
             con.close()
 
-
-
-# ---------------- SAVE CHAT MESSAGES ---------------- #
 def save_chat_messages(chat_id: int, messages: list, title=None):
     con = None
     try:
@@ -173,8 +157,6 @@ def save_chat_messages(chat_id: int, messages: list, title=None):
         if con:
             con.close()
 
-
-# ---------------- DELETE CHAT ---------------- #
 def delete_chat(chat_id: int):
     con = None
     try:
@@ -185,8 +167,6 @@ def delete_chat(chat_id: int):
         if con:
             con.close()
 
-
-# ---------------- LOAD CHAT BY ID ---------------- #
 def load_chat_by_id(chat_id: int):
     con = None
     try:
@@ -198,9 +178,6 @@ def load_chat_by_id(chat_id: int):
         if con:
             con.close()
 
-
-
-# ---------------- MODELS ---------------- #
 diabetes_model = pickle.load(open('diabetes_model.sav', 'rb'))
 heart_model = pickle.load(open('heart_disease_model.sav', 'rb'))
 parkinsons_model = pickle.load(open('parkinsons_model.sav', 'rb'))
@@ -208,7 +185,6 @@ parkinsons_model = pickle.load(open('parkinsons_model.sav', 'rb'))
 st.set_page_config(page_title="Multi-Disease Prediction System", layout="wide")
 
 
-# ---------------- AUTH ---------------- #
 if "user_id" not in st.session_state:
     st.title("Login / Register")
     tab1, tab2 = st.tabs(["Login", "Register"])
@@ -241,7 +217,6 @@ if "user_id" not in st.session_state:
     st.stop()
 
 
-# ---------------- SIDEBAR ---------------- #
 with st.sidebar:
     st.success(f"Logged in as {st.session_state['username']}")
     if st.button("Logout", key="logout_btn"):
@@ -255,7 +230,6 @@ with st.sidebar:
     )
 
 
-# ---------------- OCR ---------------- #
 def extract_text_from_image(uploaded_file):
     image = Image.open(uploaded_file)
     text = pytesseract.image_to_string(image)
@@ -462,7 +436,7 @@ if selected == 'HealthBot Assistant':
             st.session_state.chat_session_id = create_chat_session(st.session_state.user_id, title="New Chat")
             st.session_state.chat_history = []
             st.rerun()
-        if st.button("🧹 Clear Current Chat", key="clear_chat_btn"):
+        if st.button("Clear Current Chat", key="clear_chat_btn"):
             st.session_state.chat_history = []
             save_chat_messages(st.session_state.chat_session_id, [])
             st.rerun()
@@ -546,3 +520,4 @@ if selected == "Past Predictions":
                 else:
                     st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
