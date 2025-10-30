@@ -7,7 +7,8 @@ Created on Thu Sep 25 17:00:19 2025
 
 import streamlit as st
 import pickle
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import hashlib
 import json
 from datetime import datetime
@@ -16,151 +17,130 @@ import google.generativeai as genai
 from PIL import Image
 import pytesseract
 
-DB_PATH = "healthapp.db"
+
+# ---------------- DATABASE CONNECTION ---------------- #
+DB_URL = st.secrets["DATABASE_URL"]
 
 def db_conn():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    return psycopg2.connect(DB_URL, cursor_factory=psycopg2.extras.DictCursor)
 
-def init_db():
-    con = db_conn(); cur = con.cursor()
 
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL
-    )""")
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS predictions(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      disease TEXT NOT NULL,
-      input_values TEXT NOT NULL,
-      result TEXT NOT NULL,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    )""")
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS chats(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      messages TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    )""")
-
-    try:
-        cur.execute("ALTER TABLE chats ADD COLUMN title TEXT DEFAULT ''")
-    except sqlite3.OperationalError:
-        pass
-    try:
-        cur.execute("ALTER TABLE chats ADD COLUMN type TEXT DEFAULT 'normal'")
-    except sqlite3.OperationalError:
-        pass
-
-    cur.execute("UPDATE chats SET title = 'Old Session #' || id WHERE title IS NULL OR title = ''")
-
-    con.commit(); con.close()
-
+# ---------------- HELPER FUNCTIONS ---------------- #
 def hash_password(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
+
 
 def create_user(username: str, password: str) -> bool:
     try:
         con = db_conn(); cur = con.cursor()
-        cur.execute("INSERT INTO users(username,password_hash) VALUES(?,?)",
-                    (username, hash_password(password)))
+        cur.execute(
+            "INSERT INTO users(username,password_hash) VALUES(%s,%s)",
+            (username, hash_password(password))
+        )
         con.commit()
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return False
     finally:
         con.close()
 
+
 def login_user(username: str, password: str):
     con = db_conn(); cur = con.cursor()
-    cur.execute("SELECT id, password_hash FROM users WHERE username=?", (username,))
+    cur.execute("SELECT id, password_hash FROM users WHERE username=%s", (username,))
     row = cur.fetchone()
     con.close()
-    if row and row[1] == hash_password(password):
-        return row[0]
+    if row and row["password_hash"] == hash_password(password):
+        return row["id"]
     return None
+
 
 def save_prediction(user_id: int, disease: str, inputs: list, result: str):
     con = db_conn(); cur = con.cursor()
     cur.execute(
-        "INSERT INTO predictions(user_id,disease,input_values,result,timestamp) VALUES(?,?,?,?,?)",
-        (user_id, disease, json.dumps(inputs), result, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        "INSERT INTO predictions(user_id,disease,input_values,result,timestamp) VALUES(%s,%s,%s,%s,%s)",
+        (user_id, disease, json.dumps(inputs), result, datetime.now())
     )
     con.commit(); con.close()
+
 
 def load_predictions(user_id: int):
     con = db_conn(); cur = con.cursor()
     cur.execute("""
         SELECT disease, input_values, result, timestamp
         FROM predictions
-        WHERE user_id=?
+        WHERE user_id=%s
         ORDER BY timestamp DESC
     """, (user_id,))
     rows = cur.fetchall()
     con.close()
-    return [(d, json.loads(inp), r, ts) for (d, inp, r, ts) in rows]
+    return [(r["disease"], json.loads(r["input_values"]), r["result"], r["timestamp"]) for r in rows]
+
 
 def create_chat_session(user_id: int, title="New Chat", chat_type="normal") -> int:
     con = db_conn(); cur = con.cursor()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now()
     cur.execute(
-        "INSERT INTO chats(user_id,title,type,messages,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+        "INSERT INTO chats(user_id,title,type,messages,created_at,updated_at) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
         (user_id, title, chat_type, json.dumps([]), now, now)
     )
-    chat_id = cur.lastrowid
+    chat_id = cur.fetchone()["id"]
     con.commit(); con.close()
     return chat_id
+
 
 def load_chat_sessions(user_id: int):
     con = db_conn(); cur = con.cursor()
     cur.execute("""
         SELECT id, title, type, messages, created_at, updated_at
         FROM chats
-        WHERE user_id=?
+        WHERE user_id=%s
         ORDER BY updated_at DESC
     """, (user_id,))
     rows = cur.fetchall()
     con.close()
-    return [(cid, title, ctype, json.loads(msgs), c_at, u_at) for (cid, title, ctype, msgs, c_at, u_at) in rows]
+    return [(r["id"], r["title"], r["type"], json.loads(r["messages"]), r["created_at"], r["updated_at"]) for r in rows]
+
 
 def save_chat_messages(chat_id: int, messages: list, title=None):
     con = db_conn(); cur = con.cursor()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now()
     if title is not None:
-        cur.execute("UPDATE chats SET messages=?, updated_at=?, title=? WHERE id=?",
-                    (json.dumps(messages), now, title, chat_id))
+        cur.execute(
+            "UPDATE chats SET messages=%s, updated_at=%s, title=%s WHERE id=%s",
+            (json.dumps(messages), now, title, chat_id)
+        )
     else:
-        cur.execute("UPDATE chats SET messages=?, updated_at=? WHERE id=?",
-                    (json.dumps(messages), now, chat_id))
+        cur.execute(
+            "UPDATE chats SET messages=%s, updated_at=%s WHERE id=%s",
+            (json.dumps(messages), now, chat_id)
+        )
     con.commit(); con.close()
+
 
 def delete_chat(chat_id: int):
     con = db_conn(); cur = con.cursor()
-    cur.execute("DELETE FROM chats WHERE id=?", (chat_id,))
+    cur.execute("DELETE FROM chats WHERE id=%s", (chat_id,))
     con.commit(); con.close()
+
 
 def load_chat_by_id(chat_id: int):
     con = db_conn(); cur = con.cursor()
-    cur.execute("SELECT messages FROM chats WHERE id=?", (chat_id,))
+    cur.execute("SELECT messages FROM chats WHERE id=%s", (chat_id,))
     row = cur.fetchone()
     con.close()
-    return json.loads(row[0]) if row else []
+    return json.loads(row["messages"]) if row else []
 
-init_db()
+
+# ---------------- MODELS ---------------- #
 diabetes_model = pickle.load(open('diabetes_model.sav', 'rb'))
 heart_model = pickle.load(open('heart_disease_model.sav', 'rb'))
 parkinsons_model = pickle.load(open('parkinsons_model.sav', 'rb'))
+
 st.set_page_config(page_title="Multi-Disease Prediction System", layout="wide")
 
+
+# ---------------- AUTH ---------------- #
 if "user_id" not in st.session_state:
     st.title("Login / Register")
     tab1, tab2 = st.tabs(["Login", "Register"])
@@ -192,6 +172,8 @@ if "user_id" not in st.session_state:
                 st.error("Username already exists. Try another.")
     st.stop()
 
+
+# ---------------- SIDEBAR ---------------- #
 with st.sidebar:
     st.success(f"Logged in as {st.session_state['username']}")
     if st.button("Logout", key="logout_btn"):
@@ -204,10 +186,13 @@ with st.sidebar:
         default_index=0
     )
 
+
+# ---------------- OCR ---------------- #
 def extract_text_from_image(uploaded_file):
     image = Image.open(uploaded_file)
     text = pytesseract.image_to_string(image)
     return text
+
 
 if "redirect_to" in st.session_state and st.session_state["redirect_to"]:
     selected = st.session_state["redirect_to"]
@@ -472,6 +457,7 @@ if selected == "Past Predictions":
                 st.write("**Input Values:**")
                 st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
 
 
 
