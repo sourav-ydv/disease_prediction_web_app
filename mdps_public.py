@@ -407,7 +407,6 @@ if selected == 'HealthBot Assistant':
         st.error("Gemini API key missing or invalid.")
         st.stop()
 
-    # --- helper: build prediction context ---
     def build_prediction_context():
         if "last_prediction" not in st.session_state:
             return None
@@ -428,12 +427,10 @@ if selected == 'HealthBot Assistant':
         """
         return context
 
-    # --- ensure chat session ---
     if "chat_session_id" not in st.session_state:
         st.session_state.chat_session_id = create_chat_session(st.session_state.user_id, title="New Chat")
         st.session_state.chat_history = []
 
-    # --- sidebar: chat list ---
     with st.sidebar:
         st.markdown("Chats")
         sessions = load_chat_sessions(st.session_state.user_id)
@@ -463,14 +460,12 @@ if selected == 'HealthBot Assistant':
             st.session_state.chat_session_id = create_chat_session(st.session_state.user_id, title="New Chat")
             st.rerun()
 
-    # --- render chat history ---
     for msg in st.session_state.chat_history:
         role = "You:" if msg["role"]=="user" else "HealthBot:"
         color = "#1e1e1e" if msg["role"]=="user" else "#2b313e"
         align = "right" if msg["role"]=="user" else "left"
         st.markdown(f"<div style='background:{color};padding:10px;border-radius:12px;margin:8px 0;text-align:{align};color:#fff;'>{role} {msg['content']}</div>", unsafe_allow_html=True)
 
-    # --- user input ---
     user_message = st.chat_input("💬 Type your message...")
     if user_message:
         history = st.session_state.chat_history
@@ -485,7 +480,6 @@ if selected == 'HealthBot Assistant':
         else:
             save_chat_messages(current_id, history)
 
-        # --- build final prompt with prediction context if needed ---
         context = build_prediction_context()
         if context and any(word in user_message.lower() for word in ["prediction", "numbers", "result", "last test"]):
             prompt = f"""
@@ -552,5 +546,6 @@ if selected == "Past Predictions":
                 else:
                     st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
 
 
