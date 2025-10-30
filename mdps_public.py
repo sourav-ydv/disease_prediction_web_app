@@ -114,7 +114,6 @@ def create_chat_session(user_id: int, title="New Chat", chat_type="normal") -> i
             con.close()
 
 
-# ---------------- LOAD CHAT SESSIONS ---------------- #
 def load_chat_sessions(user_id: int):
     con = None
     try:
@@ -126,10 +125,21 @@ def load_chat_sessions(user_id: int):
             ORDER BY updated_at DESC
         """, (user_id,))
         rows = cur.fetchall()
-        return [(r["id"], r["title"], r["type"], json.loads(r["messages"]), r["created_at"], r["updated_at"]) for r in rows]
+        sessions = []
+        for r in rows:
+            msgs = r["messages"]
+            # If it's already a dict/list, keep it. If it's string, parse.
+            if isinstance(msgs, str):
+                try:
+                    msgs = json.loads(msgs)
+                except Exception:
+                    msgs = []
+            sessions.append((r["id"], r["title"], r["type"], msgs, r["created_at"], r["updated_at"]))
+        return sessions
     finally:
         if con:
             con.close()
+
 
 
 # ---------------- SAVE CHAT MESSAGES ---------------- #
@@ -505,6 +515,7 @@ if selected == "Past Predictions":
                 st.write("**Input Values:**")
                 st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
 
 
 
