@@ -17,20 +17,20 @@ import google.generativeai as genai
 from PIL import Image
 import pytesseract
 
-
-# ---------------- DATABASE CONNECTION ---------------- #
 DB_URL = st.secrets["DATABASE_URL"]
 
 def db_conn():
     return psycopg2.connect(DB_URL, cursor_factory=psycopg2.extras.DictCursor)
 
 
-# ---------------- HELPER FUNCTIONS ---------------- #
+# ---------------- PASSWORD HASH ---------------- #
 def hash_password(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
 
 
+# ---------------- CREATE USER ---------------- #
 def create_user(username: str, password: str) -> bool:
+    con = None
     try:
         con = db_conn(); cur = con.cursor()
         cur.execute(
@@ -40,96 +40,144 @@ def create_user(username: str, password: str) -> bool:
         con.commit()
         return True
     except psycopg2.IntegrityError:
+        if con:
+            con.rollback()
         return False
     finally:
-        con.close()
+        if con:
+            con.close()
 
 
+# ---------------- LOGIN USER ---------------- #
 def login_user(username: str, password: str):
-    con = db_conn(); cur = con.cursor()
-    cur.execute("SELECT id, password_hash FROM users WHERE username=%s", (username,))
-    row = cur.fetchone()
-    con.close()
-    if row and row["password_hash"] == hash_password(password):
-        return row["id"]
-    return None
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute("SELECT id, password_hash FROM users WHERE username=%s", (username,))
+        row = cur.fetchone()
+        if row and row["password_hash"] == hash_password(password):
+            return row["id"]
+        return None
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- SAVE PREDICTION ---------------- #
 def save_prediction(user_id: int, disease: str, inputs: list, result: str):
-    con = db_conn(); cur = con.cursor()
-    cur.execute(
-        "INSERT INTO predictions(user_id,disease,input_values,result,timestamp) VALUES(%s,%s,%s,%s,%s)",
-        (user_id, disease, json.dumps(inputs), result, datetime.now())
-    )
-    con.commit(); con.close()
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute(
+            "INSERT INTO predictions(user_id,disease,input_values,result,timestamp) VALUES(%s,%s,%s,%s,%s)",
+            (user_id, disease, json.dumps(inputs), result, datetime.now())
+        )
+        con.commit()
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- LOAD PREDICTIONS ---------------- #
 def load_predictions(user_id: int):
-    con = db_conn(); cur = con.cursor()
-    cur.execute("""
-        SELECT disease, input_values, result, timestamp
-        FROM predictions
-        WHERE user_id=%s
-        ORDER BY timestamp DESC
-    """, (user_id,))
-    rows = cur.fetchall()
-    con.close()
-    return [(r["disease"], json.loads(r["input_values"]), r["result"], r["timestamp"]) for r in rows]
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute("""
+            SELECT disease, input_values, result, timestamp
+            FROM predictions
+            WHERE user_id=%s
+            ORDER BY timestamp DESC
+        """, (user_id,))
+        rows = cur.fetchall()
+        return [(r["disease"], json.loads(r["input_values"]), r["result"], r["timestamp"]) for r in rows]
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- CREATE CHAT SESSION ---------------- #
 def create_chat_session(user_id: int, title="New Chat", chat_type="normal") -> int:
-    con = db_conn(); cur = con.cursor()
-    now = datetime.now()
-    cur.execute(
-        "INSERT INTO chats(user_id,title,type,messages,created_at,updated_at) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
-        (user_id, title, chat_type, json.dumps([]), now, now)
-    )
-    chat_id = cur.fetchone()["id"]
-    con.commit(); con.close()
-    return chat_id
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        now = datetime.now()
+        cur.execute(
+            "INSERT INTO chats(user_id,title,type,messages,created_at,updated_at) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
+            (user_id, title, chat_type, json.dumps([]), now, now)
+        )
+        chat_id = cur.fetchone()["id"]
+        con.commit()
+        return chat_id
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- LOAD CHAT SESSIONS ---------------- #
 def load_chat_sessions(user_id: int):
-    con = db_conn(); cur = con.cursor()
-    cur.execute("""
-        SELECT id, title, type, messages, created_at, updated_at
-        FROM chats
-        WHERE user_id=%s
-        ORDER BY updated_at DESC
-    """, (user_id,))
-    rows = cur.fetchall()
-    con.close()
-    return [(r["id"], r["title"], r["type"], json.loads(r["messages"]), r["created_at"], r["updated_at"]) for r in rows]
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute("""
+            SELECT id, title, type, messages, created_at, updated_at
+            FROM chats
+            WHERE user_id=%s
+            ORDER BY updated_at DESC
+        """, (user_id,))
+        rows = cur.fetchall()
+        return [(r["id"], r["title"], r["type"], json.loads(r["messages"]), r["created_at"], r["updated_at"]) for r in rows]
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- SAVE CHAT MESSAGES ---------------- #
 def save_chat_messages(chat_id: int, messages: list, title=None):
-    con = db_conn(); cur = con.cursor()
-    now = datetime.now()
-    if title is not None:
-        cur.execute(
-            "UPDATE chats SET messages=%s, updated_at=%s, title=%s WHERE id=%s",
-            (json.dumps(messages), now, title, chat_id)
-        )
-    else:
-        cur.execute(
-            "UPDATE chats SET messages=%s, updated_at=%s WHERE id=%s",
-            (json.dumps(messages), now, chat_id)
-        )
-    con.commit(); con.close()
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        now = datetime.now()
+        if title is not None:
+            cur.execute(
+                "UPDATE chats SET messages=%s, updated_at=%s, title=%s WHERE id=%s",
+                (json.dumps(messages), now, title, chat_id)
+            )
+        else:
+            cur.execute(
+                "UPDATE chats SET messages=%s, updated_at=%s WHERE id=%s",
+                (json.dumps(messages), now, chat_id)
+            )
+        con.commit()
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- DELETE CHAT ---------------- #
 def delete_chat(chat_id: int):
-    con = db_conn(); cur = con.cursor()
-    cur.execute("DELETE FROM chats WHERE id=%s", (chat_id,))
-    con.commit(); con.close()
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute("DELETE FROM chats WHERE id=%s", (chat_id,))
+        con.commit()
+    finally:
+        if con:
+            con.close()
 
 
+# ---------------- LOAD CHAT BY ID ---------------- #
 def load_chat_by_id(chat_id: int):
-    con = db_conn(); cur = con.cursor()
-    cur.execute("SELECT messages FROM chats WHERE id=%s", (chat_id,))
-    row = cur.fetchone()
-    con.close()
-    return json.loads(row["messages"]) if row else []
+    con = None
+    try:
+        con = db_conn(); cur = con.cursor()
+        cur.execute("SELECT messages FROM chats WHERE id=%s", (chat_id,))
+        row = cur.fetchone()
+        return json.loads(row["messages"]) if row else []
+    finally:
+        if con:
+            con.close()
+
 
 
 # ---------------- MODELS ---------------- #
@@ -457,6 +505,7 @@ if selected == "Past Predictions":
                 st.write("**Input Values:**")
                 st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
 
 
 
