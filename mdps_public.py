@@ -78,7 +78,6 @@ def save_prediction(user_id: int, disease: str, inputs: list, result: str):
             con.close()
 
 
-# ---------------- LOAD PREDICTIONS ---------------- #
 def load_predictions(user_id: int):
     con = None
     try:
@@ -90,10 +89,21 @@ def load_predictions(user_id: int):
             ORDER BY timestamp DESC
         """, (user_id,))
         rows = cur.fetchall()
-        return [(r["disease"], json.loads(r["input_values"]), r["result"], r["timestamp"]) for r in rows]
+        results = []
+        for r in rows:
+            vals = r["input_values"]
+            # If Supabase returns JSONB as dict/list, just keep it
+            if isinstance(vals, str):
+                try:
+                    vals = json.loads(vals)
+                except Exception:
+                    vals = []
+            results.append((r["disease"], vals, r["result"], r["timestamp"]))
+        return results
     finally:
         if con:
             con.close()
+
 
 
 # ---------------- CREATE CHAT SESSION ---------------- #
@@ -289,11 +299,17 @@ if selected == 'Diabetes Prediction':
         else:
             st.success('The person is not diabetic.')
             diab_status = 'not diabetic'
+
+        # Save locally
         st.session_state['last_prediction'] = {
             'disease': 'Diabetes',
             'input': user_input_d,
             'result': diab_status
         }
+
+        # Save to Supabase
+        save_prediction(st.session_state.user_id, "Diabetes", user_input_d, diab_status)
+
         
 if selected == 'Heart Disease Prediction':
     st.title("Heart Disease Prediction using ML")
@@ -329,11 +345,17 @@ if selected == 'Heart Disease Prediction':
         else:
             st.success('The person does not have any heart disease.')
             heart_status = 'does not have any heart disease'
+
+        # Save locally
         st.session_state['last_prediction'] = {
             'disease': 'Heart Disease',
             'input': user_input_h,
             'result': heart_status
         }
+
+        # Save to Supabase
+        save_prediction(st.session_state.user_id, "Heart Disease", user_input_h, heart_status)
+
         
 if selected == "Parkinson’s Prediction":
     st.title("Parkinson’s Disease Prediction using ML")
@@ -370,8 +392,6 @@ if selected == "Parkinson’s Prediction":
         HNR = st.text_input('HNR - Harmonic to Noise Ratio')
         spread2 = st.text_input('Spread2 - Nonlinear Frequency Variation Measure 2')
         
-    parkinsons_diagnosis = ''
-
     if st.button("Parkinson's Test Result"):
         try:
             user_input = [
@@ -390,14 +410,19 @@ if selected == "Parkinson’s Prediction":
                 st.success("The person is healthy.")
                 park_status = "does not have Parkinson’s Disease"
 
+            # Save locally
             st.session_state['last_prediction'] = {
                 'disease': "Parkinson’s Disease",
                 'input': user_input,
                 'result': park_status
             }
 
+            # Save to Supabase
+            save_prediction(st.session_state.user_id, "Parkinson’s Disease", user_input, park_status)
+
         except ValueError:
             st.error("Please fill all fields with valid numeric values.")
+
 
 if selected == 'HealthBot Assistant':
     st.title("AI HealthBot Assistant")
@@ -505,20 +530,19 @@ if selected == "Upload Health Report":
 if selected == "Past Predictions":
     st.title("Past Predictions History")
     preds = load_predictions(st.session_state.user_id)
-    filt = st.selectbox("Filter by disease", ["All","Diabetes","Heart Disease","Parkinson’s Disease"], index=0)
-    shown = [p for p in preds if filt=="All" or p[0]==filt]
+
+    filt = st.selectbox("Filter by disease", ["All", "Diabetes", "Heart Disease", "Parkinson’s Disease"], index=0)
+    shown = [p for p in preds if filt == "All" or p[0] == filt]
+
     if not shown:
         st.info("No past predictions.")
     else:
-        for i,(d,vals,res,ts) in enumerate(shown, start=1):
+        for i, (d, vals, res, ts) in enumerate(shown, start=1):
             with st.expander(f"{i}. {d} → {res} ({ts})", expanded=False):
                 st.write("**Input Values:**")
-                st.code(json.dumps(vals, indent=2))
+                # Pretty print input values
+                if isinstance(vals, (list, dict)):
+                    st.code(json.dumps(vals, indent=2))
+                else:
+                    st.write(str(vals))
                 st.write("**Result:**", res)
-
-
-
-
-
-
-
