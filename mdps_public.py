@@ -63,19 +63,19 @@ def login_user(username: str, password: str):
             con.close()
 
 
-# ---------------- SAVE PREDICTION ---------------- #
-def save_prediction(user_id: int, disease: str, inputs: list, result: str):
+def save_prediction(user_id: int, disease: str, inputs: dict, result: str):
     con = None
     try:
         con = db_conn(); cur = con.cursor()
         cur.execute(
-            "INSERT INTO predictions(user_id,disease,input_values,result,timestamp) VALUES(%s,%s,%s,%s,%s)",
+            "INSERT INTO predictions(user_id, disease, input_values, result, timestamp) VALUES (%s, %s, %s, %s, %s)",
             (user_id, disease, json.dumps(inputs), result, datetime.now())
         )
         con.commit()
     finally:
         if con:
             con.close()
+
 
 
 def load_predictions(user_id: int):
@@ -289,26 +289,27 @@ if selected == 'Diabetes Prediction':
         Age = st.text_input("Age")
 
     if st.button('Diabetes Test Result'):
-        user_input_d = [int(Pregnancies), int(Glucose), int(BloodPressure),
-                        int(SkinThickness), int(Insulin), float(BMI),
-                        float(DiabetesPedigreeFunction), int(Age)]
-        diab_prediction = diabetes_model.predict([user_input_d])
+        user_input_d = {
+            "Pregnancies": int(Pregnancies),
+            "Glucose": int(Glucose),
+            "BloodPressure": int(BloodPressure),
+            "SkinThickness": int(SkinThickness),
+            "Insulin": int(Insulin),
+            "BMI": float(BMI),
+            "DiabetesPedigreeFunction": float(DiabetesPedigreeFunction),
+            "Age": int(Age)
+        }
+        diab_prediction = diabetes_model.predict([list(user_input_d.values())])
         if diab_prediction[0] == 1:
             st.error('The person is likely to have diabetes.')
             diab_status = 'likely to have diabetes'
         else:
             st.success('The person is not diabetic.')
             diab_status = 'not diabetic'
-
-        # Save locally
-        st.session_state['last_prediction'] = {
-            'disease': 'Diabetes',
-            'input': user_input_d,
-            'result': diab_status
-        }
-
-        # Save to Supabase
+    
+        st.session_state['last_prediction'] = {"disease": "Diabetes", "input": user_input_d, "result": diab_status}
         save_prediction(st.session_state.user_id, "Diabetes", user_input_d, diab_status)
+
 
         
 if selected == 'Heart Disease Prediction':
@@ -333,28 +334,32 @@ if selected == 'Heart Disease Prediction':
         thal = st.text_input('Thalassemia (0 = Normal, 1 = Fixed, 2 = Reversible)')
 
     if st.button('Heart Disease Test Result'):
-        user_input_h = [
-            int(age), int(sex), int(cp), int(trestbps), int(chol),
-            int(fbs), int(restecg), int(thalach), int(exang),
-            float(oldpeak), int(slope), int(ca), int(thal)
-        ]
-        heart_prediction = heart_model.predict([user_input_h])
+        user_input_h = {
+            "Age": int(age),
+            "Sex": int(sex),
+            "Chest Pain Type": int(cp),
+            "Resting Blood Pressure": int(trestbps),
+            "Cholesterol": int(chol),
+            "Fasting Blood Sugar": int(fbs),
+            "Resting ECG": int(restecg),
+            "Max Heart Rate": int(thalach),
+            "Exercise Angina": int(exang),
+            "Oldpeak": float(oldpeak),
+            "Slope": int(slope),
+            "Major Vessels": int(ca),
+            "Thalassemia": int(thal)
+        }
+        heart_prediction = heart_model.predict([list(user_input_h.values())])
         if heart_prediction[0] == 1:
             st.error('The person is likely to have heart disease.')
             heart_status = 'likely to have heart disease'
         else:
             st.success('The person does not have any heart disease.')
             heart_status = 'does not have any heart disease'
-
-        # Save locally
-        st.session_state['last_prediction'] = {
-            'disease': 'Heart Disease',
-            'input': user_input_h,
-            'result': heart_status
-        }
-
-        # Save to Supabase
+    
+        st.session_state['last_prediction'] = {"disease": "Heart Disease", "input": user_input_h, "result": heart_status}
         save_prediction(st.session_state.user_id, "Heart Disease", user_input_h, heart_status)
+
 
         
 if selected == "Parkinson’s Prediction":
@@ -394,34 +399,45 @@ if selected == "Parkinson’s Prediction":
         
     if st.button("Parkinson's Test Result"):
         try:
-            user_input = [
-                float(fo), float(fhi), float(flo), float(Jitter_percent),
-                float(Jitter_Abs), float(RAP), float(PPQ), float(DDP),
-                float(Shimmer), float(Shimmer_dB), float(APQ3), float(APQ5),
-                float(APQ), float(DDA), float(NHR), float(HNR), float(RPDE),
-                float(DFA), float(spread1), float(spread2), float(D2), float(PPE)
-            ]
-            parkinsons_prediction = parkinsons_model.predict([user_input])
-
+            user_input = {
+                "fo": float(fo),
+                "fhi": float(fhi),
+                "flo": float(flo),
+                "Jitter(%)": float(Jitter_percent),
+                "Jitter(Abs)": float(Jitter_Abs),
+                "RAP": float(RAP),
+                "PPQ": float(PPQ),
+                "DDP": float(DDP),
+                "Shimmer": float(Shimmer),
+                "Shimmer(dB)": float(Shimmer_dB),
+                "APQ3": float(APQ3),
+                "APQ5": float(APQ5),
+                "APQ": float(APQ),
+                "DDA": float(DDA),
+                "NHR": float(NHR),
+                "HNR": float(HNR),
+                "RPDE": float(RPDE),
+                "DFA": float(DFA),
+                "Spread1": float(spread1),
+                "Spread2": float(spread2),
+                "D2": float(D2),
+                "PPE": float(PPE)
+            }
+            parkinsons_prediction = parkinsons_model.predict([list(user_input.values())])
+    
             if parkinsons_prediction[0] == 1:
                 st.error("The person likely has Parkinson’s Disease.")
                 park_status = "likely to have Parkinson’s Disease"
             else:
                 st.success("The person is healthy.")
                 park_status = "does not have Parkinson’s Disease"
-
-            # Save locally
-            st.session_state['last_prediction'] = {
-                'disease': "Parkinson’s Disease",
-                'input': user_input,
-                'result': park_status
-            }
-
-            # Save to Supabase
+    
+            st.session_state['last_prediction'] = {"disease": "Parkinson’s Disease", "input": user_input, "result": park_status}
             save_prediction(st.session_state.user_id, "Parkinson’s Disease", user_input, park_status)
-
+    
         except ValueError:
             st.error("Please fill all fields with valid numeric values.")
+
 
 
 if selected == 'HealthBot Assistant':
@@ -540,9 +556,11 @@ if selected == "Past Predictions":
         for i, (d, vals, res, ts) in enumerate(shown, start=1):
             with st.expander(f"{i}. {d} → {res} ({ts})", expanded=False):
                 st.write("**Input Values:**")
-                # Pretty print input values
-                if isinstance(vals, (list, dict)):
-                    st.code(json.dumps(vals, indent=2))
+                if isinstance(vals, dict):
+                    for name, value in vals.items():
+                        st.write(f"- **{name}:** {value}")
                 else:
-                    st.write(str(vals))
+                    st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
+
+
