@@ -299,19 +299,18 @@ if selected == 'Diabetes Prediction':
             "DiabetesPedigreeFunction": float(DiabetesPedigreeFunction),
             "Age": int(Age)
         }
+
         diab_prediction = diabetes_model.predict([list(user_input_d.values())])
+        diab_status = 'likely to have diabetes' if diab_prediction[0] == 1 else 'not diabetic'
+
         if diab_prediction[0] == 1:
             st.error('The person is likely to have diabetes.')
-            diab_status = 'likely to have diabetes'
         else:
             st.success('The person is not diabetic.')
-            diab_status = 'not diabetic'
-    
+
         st.session_state['last_prediction'] = {"disease": "Diabetes", "input": user_input_d, "result": diab_status}
         save_prediction(st.session_state.user_id, "Diabetes", user_input_d, diab_status)
-
-
-        
+      
 if selected == 'Heart Disease Prediction':
     st.title("Heart Disease Prediction using ML")
 
@@ -349,18 +348,17 @@ if selected == 'Heart Disease Prediction':
             "Major Vessels": int(ca),
             "Thalassemia": int(thal)
         }
+
         heart_prediction = heart_model.predict([list(user_input_h.values())])
+        heart_status = 'likely to have heart disease' if heart_prediction[0] == 1 else 'does not have any heart disease'
+
         if heart_prediction[0] == 1:
             st.error('The person is likely to have heart disease.')
-            heart_status = 'likely to have heart disease'
         else:
             st.success('The person does not have any heart disease.')
-            heart_status = 'does not have any heart disease'
-    
+
         st.session_state['last_prediction'] = {"disease": "Heart Disease", "input": user_input_h, "result": heart_status}
         save_prediction(st.session_state.user_id, "Heart Disease", user_input_h, heart_status)
-
-
         
 if selected == "Parkinson’s Prediction":
     st.title("Parkinson’s Disease Prediction using ML")
@@ -369,75 +367,61 @@ if selected == "Parkinson’s Prediction":
     
     with col1:
         fo = st.text_input('Average Vocal Fundamental Frequency (Hz)')
-        Jitter_Abs = st.text_input('Jitter (Abs) - Small Frequency Variations')
-        Shimmer = st.text_input('Shimmer - Variation in Amplitude')
-        APQ = st.text_input('APQ - Average Amplitude Perturbation')
-        RPDE = st.text_input('RPDE - Nonlinear Dynamical Complexity')
-        D2 = st.text_input('D2 - Dynamical Complexity Measure')
+        Jitter_Abs = st.text_input('Jitter (Abs)')
+        Shimmer = st.text_input('Shimmer')
+        APQ = st.text_input('APQ')
+        RPDE = st.text_input('RPDE')
+        D2 = st.text_input('D2')
     
     with col2:
         fhi = st.text_input('Maximum Vocal Fundamental Frequency (Hz)')
-        RAP = st.text_input('RAP - Relative Average Perturbation')
+        RAP = st.text_input('RAP')
         Shimmer_dB = st.text_input('Shimmer (dB)')
-        DDA = st.text_input('DDA - Average Absolute Difference of Periods')
-        DFA = st.text_input('DFA - Signal Fractal Scaling')
-        PPE = st.text_input('PPE - Pitch Period Entropy')
+        DDA = st.text_input('DDA')
+        DFA = st.text_input('DFA')
+        PPE = st.text_input('PPE')
     
     with col3:
         flo = st.text_input('Minimum Vocal Fundamental Frequency (Hz)')
-        PPQ = st.text_input('PPQ - Pitch Period Perturbation Quotient')
-        APQ3 = st.text_input('APQ3 - Amplitude Perturbation (3 cycles)')
-        NHR = st.text_input('NHR - Noise to Harmonic Ratio')
-        spread1 = st.text_input('Spread1 - Nonlinear Frequency Variation Measure 1')
+        PPQ = st.text_input('PPQ')
+        APQ3 = st.text_input('APQ3')
+        NHR = st.text_input('NHR')
+        spread1 = st.text_input('Spread1')
 
     with col4:
-        Jitter_percent = st.text_input('Jitter (%) - Variation in Frequency')
-        DDP = st.text_input('DDP - Difference of Differences of Periods')
-        APQ5 = st.text_input('APQ5 - Amplitude Perturbation (5 cycles)')
-        HNR = st.text_input('HNR - Harmonic to Noise Ratio')
-        spread2 = st.text_input('Spread2 - Nonlinear Frequency Variation Measure 2')
+        Jitter_percent = st.text_input('Jitter (%)')
+        DDP = st.text_input('DDP')
+        APQ5 = st.text_input('APQ5')
+        HNR = st.text_input('HNR')
+        spread2 = st.text_input('Spread2')
         
     if st.button("Parkinson's Test Result"):
         try:
             user_input = {
-                "fo": float(fo),
-                "fhi": float(fhi),
-                "flo": float(flo),
-                "Jitter(%)": float(Jitter_percent),
-                "Jitter(Abs)": float(Jitter_Abs),
-                "RAP": float(RAP),
-                "PPQ": float(PPQ),
-                "DDP": float(DDP),
-                "Shimmer": float(Shimmer),
-                "Shimmer(dB)": float(Shimmer_dB),
-                "APQ3": float(APQ3),
-                "APQ5": float(APQ5),
-                "APQ": float(APQ),
-                "DDA": float(DDA),
-                "NHR": float(NHR),
-                "HNR": float(HNR),
-                "RPDE": float(RPDE),
-                "DFA": float(DFA),
-                "Spread1": float(spread1),
-                "Spread2": float(spread2),
-                "D2": float(D2),
-                "PPE": float(PPE)
+                "fo": float(fo), "fhi": float(fhi), "flo": float(flo),
+                "Jitter(%)": float(Jitter_percent), "Jitter(Abs)": float(Jitter_Abs),
+                "RAP": float(RAP), "PPQ": float(PPQ), "DDP": float(DDP),
+                "Shimmer": float(Shimmer), "Shimmer(dB)": float(Shimmer_dB),
+                "APQ3": float(APQ3), "APQ5": float(APQ5), "APQ": float(APQ),
+                "DDA": float(DDA), "NHR": float(NHR), "HNR": float(HNR),
+                "RPDE": float(RPDE), "DFA": float(DFA),
+                "Spread1": float(spread1), "Spread2": float(spread2),
+                "D2": float(D2), "PPE": float(PPE)
             }
+
             parkinsons_prediction = parkinsons_model.predict([list(user_input.values())])
-    
+            park_status = "likely to have Parkinson’s Disease" if parkinsons_prediction[0] == 1 else "does not have Parkinson’s Disease"
+
             if parkinsons_prediction[0] == 1:
                 st.error("The person likely has Parkinson’s Disease.")
-                park_status = "likely to have Parkinson’s Disease"
             else:
                 st.success("The person is healthy.")
-                park_status = "does not have Parkinson’s Disease"
-    
+
             st.session_state['last_prediction'] = {"disease": "Parkinson’s Disease", "input": user_input, "result": park_status}
             save_prediction(st.session_state.user_id, "Parkinson’s Disease", user_input, park_status)
-    
+
         except ValueError:
             st.error("Please fill all fields with valid numeric values.")
-
 
 
 if selected == 'HealthBot Assistant':
@@ -562,5 +546,3 @@ if selected == "Past Predictions":
                 else:
                     st.code(json.dumps(vals, indent=2))
                 st.write("**Result:**", res)
-
-
