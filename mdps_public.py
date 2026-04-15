@@ -492,7 +492,7 @@ if selected == 'HealthBot Assistant':
             prompt = user_message
 
         try:
-            gemini_model = genai.GenerativeModel("gemini-2.0-flash-lite-preview")
+            gemini_model = genai.GenerativeModel("gemini-1.5-flash")
             response = gemini_model.generate_content(prompt)
             reply = response.text
         except Exception as e:
@@ -515,7 +515,7 @@ if selected == "Upload Health Report":
         report_session_id = create_chat_session(st.session_state.user_id, title="Report Analysis", chat_type="report")
         history = [{"role":"user","content":extracted_text}]
         try:
-            gemini_model = genai.GenerativeModel("gemini-2.0-flash-lite-preview")
+            gemini_model = genai.GenerativeModel("gemini-1.5-flash")
             response = gemini_model.generate_content(extracted_text)
             reply = response.text
         except Exception as e:
