@@ -18,7 +18,11 @@ import numpy as np
 import easyocr
 from groq import Groq
 
-ocr_reader = easyocr.Reader(['en'])
+@st.cache_resource
+def get_ocr_reader():
+    return easyocr.Reader(['en'])
+
+ocr_reader = get_ocr_reader()
 
 DB_URL = st.secrets["DATABASE_URL"]
 
