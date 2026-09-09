@@ -497,7 +497,7 @@ if selected == 'HealthBot Assistant':
 
         try:
             response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 messages=[{"role": "user", "content": prompt}]
             )
             reply = response.choices[0].message.content
@@ -523,7 +523,7 @@ if selected == "Upload Health Report":
         try:
             groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
             response = groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="openai/gpt-oss-120b",
                 messages=[{"role": "user", "content": extracted_text}]
             )
             reply = response.choices[0].message.content
