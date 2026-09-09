@@ -13,9 +13,12 @@ import hashlib
 import json
 from datetime import datetime
 from streamlit_option_menu import option_menu
-import google.generativeai as genai
 from PIL import Image
-import pytesseract
+import numpy as np
+import easyocr
+from groq import Groq
+
+ocr_reader = easyocr.Reader(['en'])
 
 DB_URL = st.secrets["DATABASE_URL"]
 
@@ -231,8 +234,9 @@ with st.sidebar:
 
 
 def extract_text_from_image(uploaded_file):
-    image = Image.open(uploaded_file)
-    text = pytesseract.image_to_string(image)
+    image = Image.open(uploaded_file).convert('RGB')
+    result = ocr_reader.readtext(np.array(image), detail=0)
+    text = "\n".join(result)
     return text
 
 
@@ -402,9 +406,9 @@ if selected == 'HealthBot Assistant':
     st.title("AI HealthBot Assistant")
 
     try:
-        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+        groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
     except Exception:
-        st.error("Gemini API key missing or invalid.")
+        st.error("Groq API key missing or invalid.")
         st.stop()
 
     def build_prediction_context():
@@ -492,9 +496,11 @@ if selected == 'HealthBot Assistant':
             prompt = user_message
 
         try:
-            gemini_model = genai.GenerativeModel("gemini-pro")
-            response = gemini_model.generate_content(prompt)
-            reply = response.text
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            reply = response.choices[0].message.content
         except Exception as e:
             reply = "HealthBot is temporarily unavailable. Please try again."
 
@@ -515,9 +521,12 @@ if selected == "Upload Health Report":
         report_session_id = create_chat_session(st.session_state.user_id, title="Report Analysis", chat_type="report")
         history = [{"role":"user","content":extracted_text}]
         try:
-            gemini_model = genai.GenerativeModel("gemini-pro")
-            response = gemini_model.generate_content(extracted_text)
-            reply = response.text
+            groq_client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+            response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": extracted_text}]
+            )
+            reply = response.choices[0].message.content
         except Exception as e:
             reply = "HealthBot is temporarily unavailable. Please try again."
         history.append({"role":"assistant","content":reply})
