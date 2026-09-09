@@ -1,8 +1,8 @@
 streamlit
 streamlit-option-menu
 pillow
-pytesseract
-google-generativeai==0.8.5
+easyocr
+groq
 pandas
 numpy
 scikit-learn
